@@ -1,0 +1,84 @@
+#!/bin/bash
+# ==============================================================================
+# Script: 05_plink_qc_and_cohort.sh
+# Purpose: Convert BCF to PLINK, apply standard GWAS QC, and extract cohorts.
+# Note: Phenotype injection must be performed in R after this script finishes.
+# ==============================================================================
+
+IN_BCF="../04_BCFs/records_1065_snvs_rsid_cadd_AF_csq.bcf"
+OUT_DIR="."
+
+# ------------------------------------------------------------------------------
+# 1. Convert to PLINK Format
+# ------------------------------------------------------------------------------
+echo "1. Extracting biallelic variants and converting to PLINK..."
+
+# -M2: Strictly limits the output to biallelic sites. PLINK 1.9/2.0 requires 
+# biallelic variants for standard GWAS matrix math.
+bcftools view -M2 "${IN_BCF}" -Ob -o "${OUT_DIR}/records_1065_M2.bcf"
+bcftools index "${OUT_DIR}/records_1065_M2.bcf"
+
+# Convert the binary BCF into the PLINK binary tri-file format (.bed/.bim/.fam).
+plink --bcf "${OUT_DIR}/records_1065_M2.bcf" \
+      --make-bed \
+      --out "${OUT_DIR}/records_1065" \
+      --allow-extra-chr
+
+# ------------------------------------------------------------------------------
+# 2. Strict Variant & Patient Quality Control
+# ------------------------------------------------------------------------------
+echo "2. Applying Missingness and Hardy-Weinberg QC..."
+mkdir -p QC
+
+# --geno 0.01: Removes variants missing in > 1% of the cohort.
+# --hwe 0.0001: Removes variants violating Hardy-Weinberg Equilibrium (p < 1e-4).
+# We do this FIRST to ensure bad variants don't distort patient metrics.
+plink --bfile "${OUT_DIR}/records_1065" \
+      --geno 0.01 \
+      --hwe 0.0001 \
+      --make-bed \
+      --out QC/records_1065_rate_hw
+
+# --mind 0.01: Removes patients missing > 1% of their genotype calls.
+plink --bfile QC/records_1065_rate_hw \
+      --mind 0.01 \
+      --make-bed \
+      --out QC/records_1065_rate_hw_filtered
+
+# ------------------------------------------------------------------------------
+# 3. Kinship and Relatedness Filtering (KING)
+# ------------------------------------------------------------------------------
+echo "3. Identifying and removing related individuals..."
+cd QC
+
+# Calculate kinship coefficient. A threshold of >0.176 is typically used to 
+# identify 1st-degree relatives (siblings, parent-child) or sample duplicates.
+king -b records_1065_rate_hw_filtered.bed --kinship --related --prefix records_king
+king -b records_1065_rate_hw_filtered.bed --kinship --unrelated --prefix records
+
+# Remove the identified related/duplicated individuals (the 'toberemoved' list)
+plink --bfile records_1065_rate_hw_filtered \
+      --remove recordsunrelated_toberemoved.txt \
+      --make-bed \
+      --out records_1065_filtered_unrelated
+
+cd ..
+
+# ------------------------------------------------------------------------------
+# 4. Extract Final Cohorts & Apply Minor Allele Frequencies
+# ------------------------------------------------------------------------------
+echo "4. Generating base cohorts and applying MAF thresholds..."
+
+# --- 1030 Cohort ---
+# Keep only the patients defined in the 1030 sample list
+plink --bfile QC/records_1065_filtered_unrelated \
+      --keep all_1030_samples_for_1065.txt \
+      --make-bed \
+      --out records_1030_nomaf
+
+# Generate Final GWAS dataset (MAF > 1%)
+plink --bfile records_1030_nomaf --maf 0.01 --make-bed --out records_1030_cv
+
+# Generate PCA subset (MAF > 5%)
+plink --bfile records_1030_nomaf --maf 0.05 --make-bed --out PCA/records_1030_5%
+echo "Module 05 Complete."
