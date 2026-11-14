@@ -2,7 +2,6 @@
 # ==============================================================================
 # Script: 03_vqsr_filtering.sh
 # Purpose: ExcessHet hard-filtering, VQSR calculation, and metric generation.
-# Note: ENCODE blacklist filtering is handled upstream during gVCF normalization.
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
