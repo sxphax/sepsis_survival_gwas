@@ -2,7 +2,6 @@
 # ==============================================================================
 # Script: 05_plink_qc_and_cohort.sh
 # Purpose: Convert BCF to PLINK, apply standard GWAS QC, and extract cohorts.
-# Note: Phenotype injection must be performed in R after this script finishes.
 # ==============================================================================
 
 IN_BCF="../04_BCFs/records_1065_snvs_rsid_cadd_AF_csq.bcf"
