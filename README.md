@@ -1,5 +1,5 @@
 # WGS Pre-Processing and GWAS Pipeline for Sepsis Survival
-
+[![DOI](https://zenodo.org/badge/1457159910.svg)](https://doi.org/10.5281/zenodo.24280139)
 This repository contains the upstream bash pipeline used to pre-process, genotype, filter, and annotate Whole-Genome Sequencing (WGS) data for 1,065 sepsis patients from three cohorts (APROCCHSS, RECORDS Observational, and TRIAL cohorts) aligned to GRCh38. It also includes the downstream PLINK quality control and PCA computation used to define the final n=1,030 analysis cohort.
 
 ## Pipeline Architecture
